@@ -1,3 +1,10 @@
+/*
+ *  Apr. 21st 2016 by Yoshino Taro
+ *  http://makers-with-myson.blog.so-net.ne.jp/
+ *  This code is based on the sample code of
+ *  https://github.com/WorldFamousElectronics/PulseSensor_Amped_Arduino/blob/master/README.md
+ */
+
 volatile int Rate[10];
 volatile int BPM;
 volatile int Signal;
