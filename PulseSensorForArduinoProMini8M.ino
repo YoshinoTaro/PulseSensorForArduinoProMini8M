@@ -52,21 +52,28 @@ void setup() {
 ISR (TIMER2_COMPA_vect) {
   noInterrupts();
   Signal = analogRead(PulseSensorPin);
+  
   if (LongSampling) {
-    Counter += 10;
+    Counter += 10; // 10msec
   } else {
-    Counter += 2;
+    Counter += 2; // 2msec
   }
+  
   int interval = Counter - LastBeatTime;
+  
+  // hold bottom
   if (Signal < Threshold && interval > (IBI/5)*3) {
     if (Signal < T) T = Signal;
   }
   
+  // hold peak
   if (Signal > Threshold && Signal > P) {
     P = Signal;
   }
   
   if (interval > 250 /* ms */) {
+    
+    // check if Signal is over Threshold
     if ((Signal > Threshold) && !Pulse && (interval > (IBI/5)*3)) {
       Pulse = true;
       digitalWrite(BlinkPin, HIGH);
@@ -87,13 +94,12 @@ ISR (TIMER2_COMPA_vect) {
         return;
       }
       
-      word running_total = 0;
-      
+      word running_total = 0;     
       for (int i = 0; i <= 8; ++i) {
         Rate[i] = Rate[i+1];
         running_total += Rate[i];
       }
-      
+
       Rate[9] = IBI;
       running_total += IBI;
       running_total /= 10;
@@ -101,16 +107,18 @@ ISR (TIMER2_COMPA_vect) {
       QS = true;
     }
   }
-    
+  
+  // check if Signal is under Threshold
   if (Signal < Threshold && Pulse) {
     digitalWrite(BlinkPin, LOW);
     Pulse = false;
     Amplifier = P - T;
-    Threshold = Amplifier / 2 + T;
+    Threshold = Amplifier / 2 + T; // revise Threshold
     P = Threshold;
     T = Threshold;
   }
   
+  // check if no Signal is over 2.5 sec
   if (interval > 2500 /* ms */) {
     Threshold = 512;
     P = 512;
@@ -138,7 +146,6 @@ void loop() {
   FadeRate -= 15;
   FadeRate = constrain(FadeRate, 0, 255);
   analogWrite(FadePin, FadeRate);
-  delay(20); // 2msec
-  
+  delay(20);  
 }
 
