@@ -5,12 +5,13 @@
  *  https://github.com/WorldFamousElectronics/PulseSensor_Amped_Arduino/blob/master/README.md
  */
 
-volatile int Rate[10];
 volatile int BPM;
 volatile int Signal;
 volatile int IBI = 600;
 volatile boolean Pulse = false;
 volatile boolean QS = false;
+
+volatile int Rate[10];
 volatile unsigned long Counter = 0;
 volatile unsigned long LastBeatTime = 0;
 volatile boolean FirstBeat = true;
@@ -24,6 +25,7 @@ int PulseSensorPin = 0;
 int BlinkPin = 13;
 int FadePin = 5;
 int FadeRate = 0;
+boolean LongSampling = true;
 
 void setup() {
   pinMode(BlinkPin, OUTPUT);
@@ -36,8 +38,13 @@ void setup() {
   TCNT2  = 0;
   
   TCCR2A = bit(WGM21);
-  TCCR2B = bit(CS22) | bit(CS20);
-  OCR2A = 124;
+  if (LongSampling) {
+    TCCR2B = bit(CS22) | bit(CS21) | bit(CS20); // 8M/1024
+    OCR2A = 78; // 10ms
+  } else {
+    TCCR2B = bit(CS22) | bit(CS20); //8M/128
+    OCR2A = 124; // 2ms
+  }
   TIMSK2 = bit(OCIE2A);
   interrupts();
 }
@@ -45,7 +52,11 @@ void setup() {
 ISR (TIMER2_COMPA_vect) {
   noInterrupts();
   Signal = analogRead(PulseSensorPin);
-  Counter += 2;
+  if (LongSampling) {
+    Counter += 10;
+  } else {
+    Counter += 2;
+  }
   int interval = Counter - LastBeatTime;
   if (Signal < Threshold && interval > (IBI/5)*3) {
     if (Signal < T) T = Signal;
@@ -56,7 +67,7 @@ ISR (TIMER2_COMPA_vect) {
   }
   
   if (interval > 250 /* ms */) {
-    if ((Signal > Threshold) && !Pulse && (interval > (IBI*3)/5)) {
+    if ((Signal > Threshold) && !Pulse && (interval > (IBI/5)*3)) {
       Pulse = true;
       digitalWrite(BlinkPin, HIGH);
       IBI = Counter - LastBeatTime;
@@ -64,7 +75,7 @@ ISR (TIMER2_COMPA_vect) {
       
       if (SecondBeat) {
         SecondBeat = false;
-        for (int i = 0; i < 9; ++i) {
+        for (int i = 0; i <= 9; ++i) {
           Rate[i] = IBI;
         }
       }
@@ -89,26 +100,26 @@ ISR (TIMER2_COMPA_vect) {
       BPM = 60000 / running_total;
       QS = true;
     }
+  }
     
-    if (Signal < Threshold && Pulse) {
-      digitalWrite(BlinkPin, LOW);
-      Pulse = false;
-      Amplifier = P - T;
-      Threshold = Amplifier / 2 + T;
-      P = Threshold;
-      T = Threshold;
-    }
-    
-    if (interval > 2500 /* ms */) {
-      Threshold = 512;
-      P = 512;
-      T = 512;
-      LastBeatTime = Counter;
-      FirstBeat = true;
-      SecondBeat = false;
-    }
+  if (Signal < Threshold && Pulse) {
+    digitalWrite(BlinkPin, LOW);
+    Pulse = false;
+    Amplifier = P - T;
+    Threshold = Amplifier / 2 + T;
+    P = Threshold;
+    T = Threshold;
   }
   
+  if (interval > 2500 /* ms */) {
+    Threshold = 512;
+    P = 512;
+    T = 512;
+    LastBeatTime = Counter;
+    FirstBeat = true;
+    SecondBeat = false;
+  }
+ 
   interrupts();
 }
 
@@ -127,6 +138,7 @@ void loop() {
   FadeRate -= 15;
   FadeRate = constrain(FadeRate, 0, 255);
   analogWrite(FadePin, FadeRate);
+  delay(20); // 2msec
   
 }
 
