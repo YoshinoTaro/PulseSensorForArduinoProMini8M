@@ -55,6 +55,7 @@ ISR (TIMER2_COMPA_vect) {
     if (Signal < T) T = Signal;
   }
   
+ 
   // hold peak
   if (Signal > Threshold && Signal > P) {
     P = Signal;
@@ -71,6 +72,7 @@ ISR (TIMER2_COMPA_vect) {
       if (Rate[0] < 0) {
         Rate[0] = 0;
         interrupts();
+        return;
       } else if (Rate[0] == 0) {
         for (int i = 0; i < N; ++i) {
           Rate[i] = IBI;
